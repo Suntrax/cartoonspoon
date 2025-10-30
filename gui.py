@@ -122,12 +122,14 @@ class MainWindow(QMainWindow):
         self.setFixedSize(400, 400)
 
         self.load_settings()
+        self.create_menu_bar()
+        self.setup_ui()
 
         if self.auto_update_chromedriver:
-            update_chromedriver()
+            update_chromedriver(self.progress_log.append)
 
-        self.create_menu_bar()
-
+    def setup_ui(self):
+        """Setup the main UI components"""
         self.layout = QGridLayout()
 
         self.anime_label = QLabel('Enter anime name / Google drive link / Drive folder id:')
@@ -193,7 +195,8 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(clear_log_action)
 
         chromedriver_update_action = QAction("Update Chromedriver", self)
-        chromedriver_update_action.triggered.connect(update_chromedriver)
+        # Use lambda to ensure progress_log.append is available when called
+        chromedriver_update_action.triggered.connect(lambda: update_chromedriver(self.progress_log.append))
         tools_menu.addAction(chromedriver_update_action)
 
         # Create checkbox action for auto-update
@@ -215,6 +218,10 @@ class MainWindow(QMainWindow):
         self.save_settings()
         status = "enabled" if self.auto_update_chromedriver else "disabled"
         self.progress_log.append(f"Auto update chromedriver: {status}")
+
+        # Auto-update immediately if enabled
+        if self.auto_update_chromedriver:
+            update_chromedriver(self.progress_log.append)
 
     def clear_log(self):
         self.progress_log.clear()
