@@ -1,1 +1,1 @@
-auto_update_chromedriver=1
+auto_update_chromedriver=0
