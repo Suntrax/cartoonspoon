@@ -4,9 +4,10 @@ import winreg
 import zipfile
 import requests
 import subprocess
+from typing import Callable, Optional
 
 
-def update_chromedriver(log_callback=print):
+def update_chromedriver(log_callback: Optional[Callable[[str], None]] = print):
     """
     One-click function to update ChromeDriver to match your installed Chrome version.
     Only downloads new version if there's a mismatch.
@@ -26,7 +27,7 @@ def update_chromedriver(log_callback=print):
             log_callback("✅ ChromeDriver is already up-to-date!")
             return chromedriver_path
 
-        chromedriver_version = _get_chromedriver_version(major_version, log_callback)
+        chromedriver_version = _get_chromedriver_version(major_version)
         log_callback(f"🔄 Corresponding ChromeDriver version: {chromedriver_version}")
 
         chromedriver_path = _download_chromedriver(chromedriver_version, log_callback)
@@ -34,7 +35,7 @@ def update_chromedriver(log_callback=print):
 
         # Verify installation
         if os.path.exists(chromedriver_path):
-            result = subprocess.run([chromedriver_path, '--version'], capture_output=True, text=True)
+            result = subprocess.run([chromedriver_path, '--version'], capture_output=True, text=True, check=False)
             log_callback(f"✅ Verification: {result.stdout.strip()}")
 
         log_callback("🎉 ChromeDriver update completed successfully!")
@@ -49,7 +50,8 @@ def update_chromedriver(log_callback=print):
         raise
 
 
-def _is_chromedriver_compatible(chromedriver_path, expected_major_version, log_callback=print):
+def _is_chromedriver_compatible(chromedriver_path: str, expected_major_version: str,
+                               log_callback: Optional[Callable[[str], None]] = print) -> bool:
     """
     Check if existing ChromeDriver is compatible with current Chrome version
     """
@@ -59,7 +61,7 @@ def _is_chromedriver_compatible(chromedriver_path, expected_major_version, log_c
 
     try:
         # Get current chromedriver version
-        result = subprocess.run([chromedriver_path, '--version'], capture_output=True, text=True)
+        result = subprocess.run([chromedriver_path, '--version'], capture_output=True, text=True, check=False)
         if result.returncode != 0:
             log_callback("⚠️  Existing ChromeDriver is corrupted, will reinstall...")
             return False
@@ -82,12 +84,12 @@ def _is_chromedriver_compatible(chromedriver_path, expected_major_version, log_c
             log_callback(f"🔄 ChromeDriver version mismatch: {current_major} (current) vs {expected_major_version} (required)")
             return False
 
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError, ValueError) as e:
         log_callback(f"⚠️  Error checking ChromeDriver compatibility: {e}, will reinstall...")
         return False
 
 
-def _get_chrome_version(log_callback=print):
+def _get_chrome_version(log_callback: Optional[Callable[[str], None]] = print) -> str:
     """Get the installed Chrome version using multiple fallback methods"""
 
     # Method 1: Try common Chrome installation paths
@@ -108,13 +110,13 @@ def _get_chrome_version(log_callback=print):
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
                                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe") as key:
-                chrome_exe = winreg.QueryValue(key, None)
-        except:
+                chrome_exe, _ = winreg.QueryValueEx(key, "")
+        except (OSError, FileNotFoundError):
             try:
                 with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
                                     r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe") as key:
-                    chrome_exe = winreg.QueryValue(key, None)
-            except:
+                    chrome_exe, _ = winreg.QueryValueEx(key, "")
+            except (OSError, FileNotFoundError):
                 pass
 
     if not chrome_exe or not os.path.exists(chrome_exe):
@@ -127,24 +129,24 @@ def _get_chrome_version(log_callback=print):
         cmd = f'(Get-Item "{chrome_exe}").VersionInfo.FileVersion'
         result = subprocess.run(
             ['powershell', '-Command', cmd],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=False
         )
         version = result.stdout.strip()
         if version:
             return version
-    except subprocess.CalledProcessError:
+    except subprocess.SubprocessError:
         pass
 
     # Method 4: Try to extract version from chrome.exe directly
     try:
         result = subprocess.run(
             [chrome_exe, '--version'],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=False
         )
         version_match = re.search(r'(\d+\.\d+\.\d+\.\d+)', result.stdout)
         if version_match:
             return version_match.group(1)
-    except subprocess.CalledProcessError:
+    except subprocess.SubprocessError:
         pass
 
     # Method 5: Try registry version
@@ -152,13 +154,13 @@ def _get_chrome_version(log_callback=print):
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Google\Chrome\BLBeacon") as key:
             version, _ = winreg.QueryValueEx(key, "version")
             return version
-    except:
+    except (OSError, FileNotFoundError):
         pass
 
-    raise Exception("Could not determine Chrome version")
+    raise RuntimeError("Could not determine Chrome version")
 
 
-def _get_major_version(full_version):
+def _get_major_version(full_version: str) -> str:
     """Extract major version from full version string"""
     match = re.search(r'^(\d+)', full_version)
     if match:
@@ -166,12 +168,12 @@ def _get_major_version(full_version):
     raise ValueError(f"Could not extract major version from: {full_version}")
 
 
-def _get_chromedriver_version(major_version, log_callback=print):
+def _get_chromedriver_version(major_version: str) -> str:
     """Get the latest ChromeDriver version for the given major Chrome version"""
     try:
         # Get the latest version information from ChromeDriver download page
         url = "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions.json"
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -190,22 +192,24 @@ def _get_chromedriver_version(major_version, log_callback=print):
         return latest_version
 
     except requests.RequestException as e:
-        raise Exception(f"Failed to fetch ChromeDriver version information: {e}")
+        raise RuntimeError(f"Failed to fetch ChromeDriver version information: {e}")
 
 
-def _download_chromedriver(version, install_dir=".", log_callback=print):
+def _download_chromedriver(version: str, install_dir: str = ".",
+                          log_callback: Optional[Callable[[str], None]] = print) -> str:
     """Download and extract ChromeDriver"""
     download_url = f"https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{version}/win64/chromedriver-win64.zip"
 
     try:
         log_callback(f"📥 Downloading ChromeDriver {version}...")
-        response = requests.get(download_url, stream=True)
+        response = requests.get(download_url, stream=True, timeout=60)
         response.raise_for_status()
 
         zip_path = os.path.join(install_dir, "chromedriver.zip")
         with open(zip_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+                if chunk:
+                    f.write(chunk)
 
         log_callback("📦 Extracting ChromeDriver...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -230,12 +234,14 @@ def _download_chromedriver(version, install_dir=".", log_callback=print):
             except OSError:
                 # Directory might not be empty, remove remaining files
                 for file in os.listdir(extracted_dir):
-                    os.remove(os.path.join(extracted_dir, file))
+                    file_path = os.path.join(extracted_dir, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
                 os.rmdir(extracted_dir)
 
         return final_chromedriver_path
 
     except requests.RequestException as e:
-        raise Exception(f"Failed to download ChromeDriver: {e}")
+        raise RuntimeError(f"Failed to download ChromeDriver: {e}")
     except zipfile.BadZipFile:
-        raise Exception("Downloaded file is not a valid ZIP file")
+        raise RuntimeError("Downloaded file is not a valid ZIP file")

@@ -26,10 +26,10 @@ from web_scraping import scrape_drive_links
 
 
 class DownloadWorker(QThread):
-    progress_text = Signal(str)     # text updates
-    progress_value = Signal(int)    # overall progress bar updates
-    file_progress = Signal(int)     # individual file progress bar updates
-    finished = Signal()             # download finished
+    progress_text = Signal(str)  # text updates
+    progress_value = Signal(int)  # overall progress bar updates
+    file_progress = Signal(int)  # individual file progress bar updates
+    finished = Signal()  # download finished
 
     def __init__(self, service, drive_links, query):
         super().__init__()
@@ -54,9 +54,9 @@ class DownloadWorker(QThread):
                 os.makedirs(base_path, exist_ok=True)
                 if match_folder:
                     folder_id = match_folder.group(1)
-                    files = sorted(list_files_in_folder(self.service, folder_id), key=lambda f: f['name'])
-                    for f in files:
-                        files_map.append((f['id'], f['name'], base_path))
+                    files_list = sorted(list_files_in_folder(self.service, folder_id), key=lambda x: x['name'])
+                    for file_item in files_list:
+                        files_map.append((file_item['id'], file_item['name'], base_path))
                 elif match_file:
                     files_map.append((match_file.group(1), name, base_path))
             else:
@@ -73,11 +73,11 @@ class DownloadWorker(QThread):
                 episode_counter = 1
                 if match_folder:
                     folder_id = match_folder.group(1)
-                    files = sorted(list_files_in_folder(self.service, folder_id), key=lambda f: f['name'])
-                    for f in files:
-                        ext = os.path.splitext(f['name'])[1]
+                    files_list = sorted(list_files_in_folder(self.service, folder_id), key=lambda x: x['name'])
+                    for file_item in files_list:
+                        ext = os.path.splitext(file_item['name'])[1]
                         episode_name = f"{safe_title} S{season_num:02d}E{episode_counter:02d}{ext}"
-                        files_map.append((f['id'], episode_name, base_path))
+                        files_map.append((file_item['id'], episode_name, base_path))
                         episode_counter += 1
                 elif match_file:
                     ext = os.path.splitext(name)[1] if "." in name else ".mp4"
@@ -113,10 +113,23 @@ class DownloadWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Initialize all instance attributes
         self.auto_update_chromedriver = False
         self.worker = None
         self.service = authenticate_drive_api()
         self.query = None
+        self.chromedriver_auto_update_action = None
+
+        # GUI widgets
+        self.layout = None
+        self.anime_label = None
+        self.anime_name = None
+        self.scrape_button = None
+        self.progress_log = None
+        self.progress_bar = None
+        self.file_progress_bar = None
+        self.widget = None
+
         self.setWindowTitle("cartoonspoon")
         self.setWindowIcon(QIcon('assets/icon.png'))
         self.setFixedSize(400, 400)
@@ -129,7 +142,7 @@ class MainWindow(QMainWindow):
             update_chromedriver(self.progress_log.append)
 
     def setup_ui(self):
-        """Setup the main UI components"""
+        """Set up the main UI components"""
         self.layout = QGridLayout()
 
         self.anime_label = QLabel('Enter anime name / Google drive link / Drive folder id:')
