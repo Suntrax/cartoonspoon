@@ -106,10 +106,6 @@ class DownloadWorker(QThread):
 
         self.finished.emit()
 
-
-# -------------------------
-# Main GUI
-# -------------------------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
