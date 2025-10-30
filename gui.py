@@ -14,7 +14,11 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QWidget,
     QProgressBar,
+    QMessageBox,
 )
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtCore import QThread, Signal
 
 from web_scraping import scrape_drive_links
@@ -114,6 +118,10 @@ class MainWindow(QMainWindow):
         self.service = authenticate_drive_api()
         self.query = None
         self.setWindowTitle("cartoonspoon")
+        self.setWindowIcon(QIcon('assets/icon.png'))
+        self.setFixedSize(400, 400)
+
+        self.create_menu_bar()
 
         self.layout = QGridLayout()
 
@@ -140,9 +148,48 @@ class MainWindow(QMainWindow):
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
 
+    def create_menu_bar(self):
+        menubar = self.menuBar()
+
+        # File Menu
+        file_menu = menubar.addMenu("File")
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # Tools Menu
+        tools_menu = menubar.addMenu("Tools")
+        clear_log_action = QAction("Clear Log", self)
+        clear_log_action.triggered.connect(self.clear_log)
+        tools_menu.addAction(clear_log_action)
+
+        # Help Menu
+        help_menu = menubar.addMenu("Help")
+        about_action = QAction("About", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+
+    def clear_log(self):
+        self.progress_log.clear()
+
+    def show_about(self):
+        about_box = QMessageBox(self)
+        about_box.setWindowTitle("About cartoonspoon")
+        about_box.setTextFormat(Qt.TextFormat.RichText)
+        about_box.setText(
+            "A Google Drive anime scraper and downloader.\n"
+            "<a href='https://github.com/Suntrax/cartoonspoon'>Check out on github</a>."
+        )
+        about_box.exec()
+
     def scrape_anime_name(self):
-        self.query = self.anime_name.text()
+        self.query = self.anime_name.text().strip()
         if not self.query:
+            QMessageBox.warning(
+                self,
+                "Input Required",
+                "Please enter an anime name, Google Drive link, or folder ID before scraping.",
+            )
             return
         self.anime_name.setDisabled(True)
         self.scrape_button.setDisabled(True)

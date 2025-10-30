@@ -1,4 +1,3 @@
-import re
 import sys
 
 from gui import MainWindow
