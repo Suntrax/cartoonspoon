@@ -1,0 +1,8 @@
+webdriver-manager
+PySide6
+requests
+protobuf
+selenium
+google-auth
+google-auth-oauthlib
+google-api-python-client
