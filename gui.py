@@ -3,6 +3,7 @@ import re
 
 from web_scraping import scrape_tmdb_info
 from helper_functions import sanitize_filename
+from chromedriver_updating import update_chromedriver
 from google_drive import download_file, list_files_in_folder, authenticate_drive_api
 
 from PySide6.QtWidgets import (
@@ -38,8 +39,6 @@ class DownloadWorker(QThread):
 
     def run(self):
         anime_name = self.query
-        # Count total files to download
-        total_files = 0
         files_map = []  # List of (file_id, file_name, base_path) for all files
         for name, url in self.drive_links:
             match_folder = re.search(r"/folders/([a-zA-Z0-9_-]+)", url)
@@ -114,12 +113,18 @@ class DownloadWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.auto_update_chromedriver = False
         self.worker = None
         self.service = authenticate_drive_api()
         self.query = None
         self.setWindowTitle("cartoonspoon")
         self.setWindowIcon(QIcon('assets/icon.png'))
         self.setFixedSize(400, 400)
+
+        self.load_settings()
+
+        if self.auto_update_chromedriver:
+            update_chromedriver()
 
         self.create_menu_bar()
 
@@ -148,6 +153,30 @@ class MainWindow(QMainWindow):
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
 
+    def load_settings(self):
+        """Load settings from settings.txt file"""
+        try:
+            if os.path.exists("settings.txt"):
+                with open("settings.txt", "r") as file:
+                    settings = file.readlines()
+                for line in settings:
+                    line = line.strip()
+                    if line.startswith("auto_update_chromedriver="):
+                        value = line.split("=")[1].strip()
+                        self.auto_update_chromedriver = (value == "1")
+                        break
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            self.auto_update_chromedriver = False
+
+    def save_settings(self):
+        """Save settings to settings.txt file"""
+        try:
+            with open("settings.txt", "w") as file:
+                file.write(f"auto_update_chromedriver={'1' if self.auto_update_chromedriver else '0'}\n")
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+
     def create_menu_bar(self):
         menubar = self.menuBar()
 
@@ -163,11 +192,29 @@ class MainWindow(QMainWindow):
         clear_log_action.triggered.connect(self.clear_log)
         tools_menu.addAction(clear_log_action)
 
+        chromedriver_update_action = QAction("Update Chromedriver", self)
+        chromedriver_update_action.triggered.connect(update_chromedriver)
+        tools_menu.addAction(chromedriver_update_action)
+
+        # Create checkbox action for auto-update
+        self.chromedriver_auto_update_action = QAction("Auto Update Chromedriver", self)
+        self.chromedriver_auto_update_action.setCheckable(True)
+        self.chromedriver_auto_update_action.setChecked(self.auto_update_chromedriver)
+        self.chromedriver_auto_update_action.triggered.connect(self.toggle_auto_update_chromedriver)
+        tools_menu.addAction(self.chromedriver_auto_update_action)
+
         # Help Menu
         help_menu = menubar.addMenu("Help")
         about_action = QAction("About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+
+    def toggle_auto_update_chromedriver(self):
+        """Toggle the auto-update setting and save it"""
+        self.auto_update_chromedriver = self.chromedriver_auto_update_action.isChecked()
+        self.save_settings()
+        status = "enabled" if self.auto_update_chromedriver else "disabled"
+        self.progress_log.append(f"Auto update chromedriver: {status}")
 
     def clear_log(self):
         self.progress_log.clear()
