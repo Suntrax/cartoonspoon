@@ -23,5 +23,8 @@ Thumbs.db
 chromedriver.exe
 *.exe
 
-# === Movie / Series ===
+# === Movies / Series ===
 downloads/
+
+# === Login / Token ===
+login_files/
