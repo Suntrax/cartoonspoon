@@ -22,3 +22,6 @@ Thumbs.db
 # === Binaries / tools ===
 chromedriver.exe
 *.exe
+
+# === Movie / Series ===
+downloads/
