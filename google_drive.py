@@ -53,7 +53,7 @@ def list_files_in_folder(service, folder_id):
             break
     return files
 
-def download_file(service, file_id, file_name, save_path):
+def download_file(service, file_id, file_name, save_path, progress_callback=None):
     os.makedirs(save_path, exist_ok=True)
     request = service.files().get_media(fileId=file_id)
     fh = io.FileIO(os.path.join(save_path, file_name), 'wb')
@@ -61,5 +61,7 @@ def download_file(service, file_id, file_name, save_path):
     done = False
     while not done:
         status, done = downloader.next_chunk()
-        if status:
-            print(f"Downloading {file_name}: {int(status.progress() * 100)}%")
+        if status and progress_callback:
+            percent = int(status.progress() * 100)
+            progress_callback(percent)
+
