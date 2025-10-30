@@ -23,8 +23,13 @@ Thumbs.db
 chromedriver.exe
 *.exe
 
+<<<<<<< HEAD
 # === Movies / Series ===
 downloads/
 
 # === Login / Token ===
 login_files/
+=======
+# === Movie / Series ===
+downloads/
+>>>>>>> parent of 16debcd (Added login files to .gitignore)
