@@ -6,14 +6,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 
 def scrape_tmdb_info(query, content_type="tv"):
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--window-size=1400,900")
     driver = webdriver.Chrome(options=options)
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 10)
 
     try:
         if content_type == "tv":
@@ -27,14 +27,21 @@ def scrape_tmdb_info(query, content_type="tv"):
 
         driver.get(search_url)
 
-        if content_type == "tv":
-            cards = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "div.card a[href*='/tv/']")))
-        else:
-            cards = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "div.card a[href*='/movie/']")))
+        try:
+            if content_type == "tv":
+                cards = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "div.card a[href*='/tv/']")))
+            else:
+                cards = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "div.card a[href*='/movie/']")))
+        except TimeoutException:
+            # No results found
+            print(f"[WARN] No TMDB results for query: {query}")
+            return query, "0000", "unknown"
 
+        # Extract the first result
         first_link = cards[0].get_attribute("href")
         driver.get(first_link)
-        wait.until(lambda d: d.title and "TMDB" in d.title)
+
+        WebDriverWait(driver, 10).until(lambda d: d.title != "")
 
         full_title = driver.title
 
@@ -47,8 +54,13 @@ def scrape_tmdb_info(query, content_type="tv"):
 
         return title, year, tmdb_id
 
+    except Exception as e:
+        print(f"[ERROR] TMDB scrape failed for '{query}': {e}")
+        return query, "0000", "unknown"
+
     finally:
         driver.quit()
+
 
 def scrape_drive_links(query):
     options = webdriver.ChromeOptions()

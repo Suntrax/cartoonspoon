@@ -44,6 +44,9 @@ class DownloadWorker(QThread):
             match_folder = re.search(r"/folders/([a-zA-Z0-9_-]+)", url)
             match_file = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
             is_movie = "movie" in (anime_name or name).lower() or "film" in (anime_name or name).lower()
+            if anime_name.endswith("-m"):
+                is_movie = True
+                anime_name = anime_name[:-2]
             tmdb_query = anime_name or self.query or name
 
             if is_movie:
@@ -62,6 +65,8 @@ class DownloadWorker(QThread):
             else:
                 # Series logic
                 title, year, tmdb_id = scrape_tmdb_info(tmdb_query, content_type="tv")
+                if tmdb_id == "unknown":
+                    self.progress_text.emit(f"⚠️ No TMDB info found for '{tmdb_query}'. Using defaults.")
                 safe_title = sanitize_filename(title)
                 root_folder = os.path.join("downloads", f"{safe_title} ({year}) [tmdbid-{tmdb_id}]")
                 os.makedirs(root_folder, exist_ok=True)
@@ -80,7 +85,7 @@ class DownloadWorker(QThread):
                         files_map.append((file_item['id'], episode_name, base_path))
                         episode_counter += 1
                 elif match_file:
-                    ext = os.path.splitext(name)[1] if "." in name else ".mp4"
+                    ext = os.path.splitext(name)[1] if "." in name else ".mkv"
                     episode_name = f"{safe_title} S{season_num:02d}E{episode_counter:02d}{ext}"
                     files_map.append((match_file.group(1), episode_name, base_path))
 
@@ -256,7 +261,7 @@ class MainWindow(QMainWindow):
             return
         self.anime_name.setDisabled(True)
         self.scrape_button.setDisabled(True)
-        self.progress_log.append(f"Processing: {self.query}")
+        self.progress_log.append(f"Processing: {self.query[:-2]}")
         self.progress_bar.setValue(0)
         self.file_progress_bar.setValue(0)
 
@@ -266,7 +271,7 @@ class MainWindow(QMainWindow):
             else:
                 drive_links = [["Direct Input", self.query]]
         else:
-            drive_links = scrape_drive_links(self.query)
+            drive_links = scrape_drive_links(self.query[:-2])
 
         if not drive_links:
             self.progress_log.append("No Google Drive links found.")
