@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # Initialize all instance attributes
+        self.is_movie = None
         self.auto_update_chromedriver = False
         self.worker = None
         self.service = authenticate_drive_api()
@@ -259,9 +260,10 @@ class MainWindow(QMainWindow):
                 "Please enter an anime name, Google Drive link, or folder ID before scraping.",
             )
             return
+        self.is_movie = True if self.query.endswith("-m") else False
         self.anime_name.setDisabled(True)
         self.scrape_button.setDisabled(True)
-        self.progress_log.append(f"Processing: {self.query[:-2]}")
+        self.progress_log.append(f"Processing: {self.query}")
         self.progress_bar.setValue(0)
         self.file_progress_bar.setValue(0)
 
@@ -271,7 +273,7 @@ class MainWindow(QMainWindow):
             else:
                 drive_links = [["Direct Input", self.query]]
         else:
-            drive_links = scrape_drive_links(self.query[:-2])
+            drive_links = scrape_drive_links(self.query)
 
         if not drive_links:
             self.progress_log.append("No Google Drive links found.")
