@@ -1,7 +1,5 @@
 import sys
-
 from gui import MainWindow
-
 from PySide6.QtWidgets import QApplication
 
 

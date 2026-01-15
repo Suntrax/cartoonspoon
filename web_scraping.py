@@ -34,7 +34,6 @@ def scrape_tmdb_info(query, content_type="tv"):
                 cards = wait.until(ec.presence_of_all_elements_located((By.CSS_SELECTOR, "div.card a[href*='/movie/']")))
         except TimeoutException:
             # No results found
-            print(f"[WARN] No TMDB results for query: {query}")
             return query, "0000", "unknown"
 
         # Extract the first result
@@ -55,7 +54,6 @@ def scrape_tmdb_info(query, content_type="tv"):
         return title, year, tmdb_id
 
     except Exception as e:
-        print(f"[ERROR] TMDB scrape failed for '{query}': {e}")
         return query, "0000", "unknown"
 
     finally:

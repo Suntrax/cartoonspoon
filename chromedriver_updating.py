@@ -30,7 +30,7 @@ def update_chromedriver(log_callback: Optional[Callable[[str], None]] = print):
         chromedriver_version = _get_chromedriver_version(major_version)
         log_callback(f"🔄 Corresponding ChromeDriver version: {chromedriver_version}")
 
-        chromedriver_path = _download_chromedriver(chromedriver_version, log_callback)
+        chromedriver_path = _download_chromedriver(chromedriver_version, ".", log_callback)
         log_callback(f"✅ ChromeDriver installed at: {os.path.abspath(chromedriver_path)}")
 
         # Verify installation
